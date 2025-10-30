@@ -5,7 +5,7 @@ import logging
 import unicodedata
 from typing import List, Optional, Tuple, Dict, Any
 from urllib.parse import urlencode, quote_plus
-from datetime import datetime 
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, Body, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
@@ -22,6 +22,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 import asyncio
+from sqlalchemy import text, inspect
 
 ADMIN_TELEGRAM_IDS = [int(x.strip()) for x in os.getenv("ADMIN_TELEGRAM_ID", "").split(",") if x.strip()]
 AGENTS_LIST = os.getenv("AGENTS_LIST", "ملك الدهب").split(",")
@@ -66,7 +67,146 @@ class TradingAccount(Base):
     rejection_reason = Column(String(255), nullable=True)
     subscriber = relationship("Subscriber", back_populates="trading_accounts")
 
+# الجدول الجديد المطلوب
+class AccountPerformance(Base):
+    __tablename__ = "account_performances"
+    id = Column(Integer, primary_key=True, index=True)
+    trading_account_id = Column(Integer, ForeignKey('trading_accounts.id', ondelete='CASCADE'), nullable=False)
+    name = Column(String(200), nullable=False)  # من Subscriber
+    email = Column(String(200), nullable=False)  # من Subscriber
+    phone = Column(String(50), nullable=False)  # من Subscriber
+    telegram_username = Column(String(200), nullable=True)  # من Subscriber
+    initial_balance = Column(String(50), nullable=True)  # من TradingAccount
+    achieved_return = Column(String(50), nullable=True)  # محسوب (مثل: "25%")
+    copy_duration = Column(String(50), nullable=True)  # محسوب (مثل: "3 أشهر")
+
+    # علاقة مع جدول TradingAccount
+    trading_account = relationship("TradingAccount")
+
 Base.metadata.create_all(bind=engine)
+
+# -------------------------------
+# دالة جديدة لملء جدول AccountPerformance
+# -------------------------------
+def populate_account_performances():
+    db = SessionLocal()
+    try:
+        # جلب جميع الحسابات النشطة
+        accounts = db.query(TradingAccount).filter(TradingAccount.status == 'active').all()
+        
+        for account in accounts:
+            subscriber = account.subscriber
+            
+            # التحقق من وجود البيانات اللازمة
+            if not (account.initial_balance and account.current_balance and 
+                    account.withdrawals and account.copy_start_date):
+                continue
+            
+            try:
+                initial = float(account.initial_balance)
+                current = float(account.current_balance)
+                withdrawals = float(account.withdrawals)
+                
+                # حساب العائد المحقق
+                if initial > 0:
+                    total_value = current + withdrawals
+                    profit = total_value - initial
+                    achieved_return = f"{(profit / initial * 100):.0f}%"
+                else:
+                    achieved_return = "0%"
+                
+                # حساب المدة
+                start_date = datetime.strptime(account.copy_start_date, '%Y-%m-%d')
+                today = datetime.now()
+                delta = today - start_date
+                total_days = delta.days
+                
+                months = total_days // 30
+                remaining_days = total_days % 30
+                
+                if months > 0:
+                    copy_duration = f"{months} شهر"
+                    if remaining_days > 0:
+                        copy_duration += f" و{remaining_days} يوم"
+                else:
+                    copy_duration = f"{total_days} يوم"
+                
+                # التحقق مما إذا كان السجل موجودًا بالفعل
+                existing_perf = db.query(AccountPerformance).filter(
+                    AccountPerformance.trading_account_id == account.id
+                ).first()
+                
+                if existing_perf:
+                    # تحديث السجل الموجود
+                    existing_perf.name = subscriber.name
+                    existing_perf.email = subscriber.email
+                    existing_perf.phone = subscriber.phone
+                    existing_perf.telegram_username = subscriber.telegram_username
+                    existing_perf.initial_balance = account.initial_balance
+                    existing_perf.achieved_return = achieved_return
+                    existing_perf.copy_duration = copy_duration
+                else:
+                    # إنشاء سجل جديد
+                    performance = AccountPerformance(
+                        trading_account_id=account.id,
+                        name=subscriber.name,
+                        email=subscriber.email,
+                        phone=subscriber.phone,
+                        telegram_username=subscriber.telegram_username,
+                        initial_balance=account.initial_balance,
+                        achieved_return=achieved_return,
+                        copy_duration=copy_duration
+                    )
+                    db.add(performance)
+                
+                db.commit()
+                
+            except ValueError as ve:
+                logger.error(f"خطأ في تحويل القيم للحساب {account.id}: {ve}")
+                continue
+            
+        logger.info("تم ملء جدول الأداء بنجاح!")
+        
+    except Exception as e:
+        logger.exception(f"خطأ في ملء جدول الأداء: {e}")
+    finally:
+        db.close()
+
+def reset_sequences():
+    inspector = inspect(engine)
+    tables = ['subscribers', 'trading_accounts', 'account_performances']  # أضف الجداول الأخرى إذا لزم
+    
+    if engine.dialect.name == 'sqlite':
+        with engine.connect() as conn:
+            for table in tables:
+                # جلب أعلى ID
+                max_id_result = conn.execute(text(f"SELECT MAX(id) FROM {table}")).scalar()
+                max_id = max_id_result if max_id_result is not None else 0
+                
+                # تحديث sqlite_sequence
+                conn.execute(text(f"INSERT OR REPLACE INTO sqlite_sequence (name, seq) VALUES ('{table}', {max_id})"))
+            conn.commit()
+        logger.info("✅ تم إعادة تعيين التسلسل في SQLite بنجاح!")
+        
+    elif engine.dialect.name == 'postgresql':
+        with engine.connect() as conn:
+            for table in tables:
+                seq_name = f"{table}_id_seq"
+                conn.execute(text(f"SELECT setval('{seq_name}', COALESCE((SELECT MAX(id) + 1 FROM {table}), 1), false)"))
+            conn.commit()
+        logger.info("✅ تم إعادة تعيين التسلسل في PostgreSQL بنجاح!")
+        
+    elif engine.dialect.name == 'mysql':
+        with engine.connect() as conn:
+            for table in tables:
+                max_id_result = conn.execute(text(f"SELECT MAX(id) FROM {table}")).scalar()
+                max_id = (max_id_result or 0) + 1
+                conn.execute(text(f"ALTER TABLE {table} AUTO_INCREMENT = {max_id}"))
+            conn.commit()
+        logger.info("✅ تم إعادة تعيين التسلسل في MySQL بنجاح!")
+        
+    else:
+        logger.error(f"❌ نوع قاعدة البيانات غير مدعوم: {engine.dialect.name}")
 
 # -------------------------------
 # settings & app
@@ -92,6 +232,8 @@ FORM_MESSAGES: Dict[int, Dict[str, Any]] = {}
 # -------------------------------
 NOTIFICATION_MESSAGES: Dict[int, List[Dict[str, Any]]] = {}
 ADMIN_LANGUAGE: Dict[int, str] = {}
+
+SECRET_KEY = os.getenv("SECRET_KEY", "my_secret_key")  # استخدام متغير بيئة للسيكريت كي
 
 def set_admin_language(admin_id: int, lang: str):
     
@@ -257,12 +399,16 @@ async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         title = "الإعدادات"
         buttons = [
             "🌐 تغيير اللغة",
+            "🔄 تحديث الأداء",
+            "🔄 إعادة تعيين التسلسل",
             "🔙 رجوع"
         ]
     else:
         title = "Settings"
         buttons = [
             "🌐 Change Language",
+            "🔄 Update Performances",
+            "🔄 Reset Sequences",
             "🔙 Back"
         ]
     
@@ -270,11 +416,57 @@ async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton(buttons[0], callback_data="admin_change_language")],
-        [InlineKeyboardButton(buttons[1], callback_data="admin_main")]
+        [InlineKeyboardButton(buttons[1], callback_data="admin_update_performances")],
+        [InlineKeyboardButton(buttons[2], callback_data="admin_reset_sequences")],
+        [InlineKeyboardButton(buttons[3], callback_data="admin_main")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML")
+
+async def admin_update_performances(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    
+    user_id = q.from_user.id
+    if user_id not in ADMIN_TELEGRAM_IDS:
+        await q.edit_message_text("❌ غير مصرح لك بتنفيذ هذا الإجراء")
+        return
+    
+    admin_lang = get_admin_language(user_id)
+    
+    try:
+        populate_account_performances()
+        success_msg = "✅ تم تحديث جدول الأداء بنجاح!" if admin_lang == "ar" else "✅ Performances table updated successfully!"
+    except Exception as e:
+        logger.exception(f"Failed to update performances: {e}")
+        success_msg = "❌ فشل في تحديث جدول الأداء." if admin_lang == "ar" else "❌ Failed to update performances table."
+    
+    await q.edit_message_text(success_msg)
+    await asyncio.sleep(2)
+    await admin_settings(update, context)
+
+async def admin_reset_sequences(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    
+    user_id = q.from_user.id
+    if user_id not in ADMIN_TELEGRAM_IDS:
+        await q.edit_message_text("❌ غير مصرح لك بتنفيذ هذا الإجراء")
+        return
+    
+    admin_lang = get_admin_language(user_id)
+    
+    try:
+        reset_sequences()
+        success_msg = "✅ تم إعادة تعيين التسلسل بنجاح!" if admin_lang == "ar" else "✅ Sequences reset successfully!"
+    except Exception as e:
+        logger.exception(f"Failed to reset sequences: {e}")
+        success_msg = "❌ فشل في إعادة تعيين التسلسل." if admin_lang == "ar" else "❌ Failed to reset sequences."
+    
+    await q.edit_message_text(success_msg)
+    await asyncio.sleep(2)
+    await admin_settings(update, context)
 
 async def admin_change_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -2019,18 +2211,18 @@ def webapp_existing_account(request: Request):
     if is_ar:
         expected_return_options = """
             <option value="">اختر العائد المتوقع</option>
-            <option value="10% - 15%">10% - 15%</option>
-            <option value="20% - 30%">20% - 30%</option>
-            <option value="30% - 45%">30% - 45%</option>
-            <option value="40% - 60%">40% - 60%</option>
+            <option value="X1 = 10% - 15%">X1 = 10% - 15%</option>
+            <option value="X2 = 20% - 30%">X2 = 20% - 30%</option>
+            <option value="X3 = 30% - 45%">X3 = 30% - 45%</option>
+            <option value="X4 = 40% - 60%">X4 = 40% - 60%</option>
         """
     else:
         expected_return_options = """
             <option value="">Select Expected Return</option>
-            <option value="10% - 15%">10% - 15%</option>
-            <option value="20% - 30%">20% - 30%</option>
-            <option value="30% - 45%">30% - 45%</option>
-            <option value="40% - 60%">40% - 60%</option>
+            <option value="X1 = 10% - 15%">X1 = 10% - 15%</option>
+            <option value="X2 = 20% - 30%">X2 = 20% - 30%</option>
+            <option value="X3 = 30% - 45%">X3 = 30% - 45%</option>
+            <option value="X4 = 40% - 60%">X4 = 40% - 60%</option>
         """
 
     form_labels = [
@@ -2081,7 +2273,7 @@ def webapp_existing_account(request: Request):
         <select id="broker" required>
           <option value="">{ 'اختر الشركة' if is_ar else 'Select Broker' }</option>
           <option value="Oneroyal">Oneroyal</option>
-          <option value="Tickmill">Tickmill</option>
+          <option value="Scope">Scope</option>
         </select>
         <div id="broker_error" class="field-error">{labels['required_field']}</div>
 
@@ -2317,18 +2509,18 @@ def webapp_edit_accounts(request: Request):
     if is_ar:
         expected_return_options = """
             <option value="">اختر العائد المتوقع</option>
-            <option value="10% - 15%">10% - 15%</option>
-            <option value="20% - 30%">20% - 30%</option>
-            <option value="30% - 45%">30% - 45%</option>
-            <option value="40% - 60%">40% - 60%</option>
+            <option value="X1 = 10% - 15%">X1 = 10% - 15%</option>
+            <option value="X2 = 20% - 30%">X2 = 20% - 30%</option>
+            <option value="X3 = 30% - 45%">X3 = 30% - 45%</option>
+            <option value="X4 = 40% - 60%">X4 = 40% - 60%</option>
         """
     else:
         expected_return_options = """
             <option value="">Select Expected Return</option>
-            <option value="10% - 15%">10% - 15%</option>
-            <option value="20% - 30%">20% - 30%</option>
-            <option value="30% - 45%">30% - 45%</option>
-            <option value="40% - 60%">40% - 60%</option>
+            <option value="X1 = 10% - 15%">X1 = 10% - 15%</option>
+            <option value="X2 = 20% - 30%">X2 = 20% - 30%</option>
+            <option value="X3 = 30% - 45%">X3 = 30% - 45%</option>
+            <option value="X4 = 40% - 60%">X4 = 40% - 60%</option>
         """
 
     form_labels = [
@@ -2392,7 +2584,7 @@ def webapp_edit_accounts(request: Request):
         <select id="broker" required>
           <option value="">{ 'اختر الشركة' if is_ar else 'Select Broker' }</option>
           <option value="Oneroyal">Oneroyal</option>
-          <option value="Tickmill">Tickmill</option>
+          <option value="Scope">Scope</option>
         </select>
         <div id="broker_error" class="field-error">{labels['required_field']}</div>
 
@@ -3108,6 +3300,19 @@ async def refresh_user_accounts_interface(telegram_id: int, lang: str, chat_id: 
         save_form_ref(telegram_id, chat_id, message_id, origin="my_accounts", lang=lang)
     except Exception as e:
         logger.exception(f"Failed to refresh user interface: {e}")
+        
+       
+        try:
+            sent = await application.bot.send_message(
+                chat_id=telegram_id,
+                text=updated_message,
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+                disable_web_page_preview=True
+            )
+            save_form_ref(telegram_id, sent.chat_id, sent.message_id, origin="my_accounts", lang=lang)
+        except Exception as fallback_error:
+            logger.exception("Failed to send fallback refresh message: {fallback_error}")
 
 # ===============================
 # POST endpoint: receive form submission from WebApp (original registration)
@@ -3121,7 +3326,7 @@ async def webapp_submit(payload: dict = Body(...)):
         tg_user = payload.get("tg_user") or {}
         page_lang = (payload.get("lang") or "").lower() or None
 
-       
+        # التحقق من صحة البيانات
         if not name or len(name) < 2:
             return JSONResponse(status_code=400, content={"error": "Name too short or missing."})
         if not EMAIL_RE.match(email):
@@ -3129,17 +3334,19 @@ async def webapp_submit(payload: dict = Body(...)):
         if not PHONE_RE.match(phone):
             return JSONResponse(status_code=400, content={"error": "Invalid phone."})
 
-       
-        detected_lang = None
+        # تحديد اللغة - إصلاح المنطق هنا
+        detected_lang = "ar"  # الافتراضي عربي
         if page_lang in ("ar", "en"):
             detected_lang = page_lang
         else:
             lang_code = tg_user.get("language_code") if isinstance(tg_user, dict) else None
-            detected_lang = "en" if (lang_code and str(lang_code).startswith("en")) else "ar"
+            if lang_code and str(lang_code).startswith("en"):
+                detected_lang = "en"
 
         telegram_id = tg_user.get("id") if isinstance(tg_user, dict) else None
         telegram_username = tg_user.get("username") if isinstance(tg_user, dict) else None
 
+        # حفظ أو تحديث بيانات المشترك
         result, subscriber = save_or_update_subscriber(
             name=name, 
             email=email, 
@@ -3149,24 +3356,20 @@ async def webapp_submit(payload: dict = Body(...)):
             telegram_username=telegram_username
         )
 
-        is_edit_mode = payload.get("edit") == "1" or "edit" in (payload.get("params") or {})
+        # استخدام اللغة المحددة من الصفحة كأولوية
+        display_lang = page_lang if page_lang in ("ar", "en") else detected_lang
+
+        # الحصول على المرجع إذا كان موجوداً
         ref = get_form_ref(telegram_id) if telegram_id else None
+        
+        # إذا كان تعديل بيانات من قسم "بياناتي وحساباتي"
+        is_edit_mode = payload.get("edit") == "1"
         if ref and ref.get("origin") == "my_accounts" and (is_edit_mode or result == "updated"):
-            await refresh_user_accounts_interface(telegram_id, detected_lang, ref["chat_id"], ref["message_id"])
+            await refresh_user_accounts_interface(telegram_id, display_lang, ref["chat_id"], ref["message_id"])
             return JSONResponse(content={"message": "Updated successfully."})
             
-        display_lang = detected_lang
-        ref = get_form_ref(telegram_id) if telegram_id else None
-        if page_lang in ("ar", "en"):
-            display_lang = page_lang
-        elif ref and ref.get("lang"):
-            display_lang = ref.get("lang")
-        else:
-            display_lang = detected_lang
-
-        
+        # إذا كان التسجيل من طلب EA
         if ref and ref.get("origin") == "open_form_ea":
-            
             ea_link = "https://t.me/Nagyfx"
             if display_lang == "ar":
                 title = "طلب اختبار أنظمة YesFX (الوكلاء فقط)"
@@ -3187,38 +3390,25 @@ async def webapp_submit(payload: dict = Body(...)):
                 [InlineKeyboardButton(back_button, callback_data="forex_main")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            edited = False
-            if ref:
-                try:
-                    await application.bot.edit_message_text(
-                        text=header + f"\n\n{message_text}",
-                        chat_id=ref["chat_id"], 
-                        message_id=ref["message_id"],
-                        reply_markup=reply_markup, 
-                        parse_mode="HTML", 
-                        disable_web_page_preview=True
-                    )
-                    edited = True
-                    clear_form_ref(telegram_id)
-                except Exception:
-                    logger.exception("Failed to edit original form message; will send a fallback message.")
-            if not edited:
-                if telegram_id:
-                    try:
-                        sent = await application.bot.send_message(
-                            chat_id=telegram_id, 
-                            text=header + f"\n\n{message_text}", 
-                            reply_markup=reply_markup, 
-                            parse_mode="HTML", 
-                            disable_web_page_preview=True
-                        )
-                        save_form_ref(telegram_id, sent.chat_id, sent.message_id, origin="ea_request", lang=display_lang)
-                    except Exception:
-                        logger.exception("Failed to send EA request message to user.")
-                else:
-                    logger.info("No telegram_id available from WebApp payload; skipping Telegram notification.")
-        elif ref and ref.get("origin") == "initial_registration":
             
+            try:
+                await application.bot.edit_message_text(
+                    text=header + f"\n\n{message_text}",
+                    chat_id=ref["chat_id"], 
+                    message_id=ref["message_id"],
+                    reply_markup=reply_markup, 
+                    parse_mode="HTML", 
+                    disable_web_page_preview=True
+                )
+                clear_form_ref(telegram_id)
+            except Exception:
+                logger.exception("Failed to edit EA request message")
+                
+            return JSONResponse(content={"message": "Sent successfully."})
+
+        # إذا كان التسجيل الأولي من نموذج اللغة
+        elif ref and ref.get("origin") == "initial_registration":
+            # عرض القوائم الرئيسية بعد التسجيل الناجح
             if telegram_id:
                 try:
                     if display_lang == "ar":
@@ -3236,56 +3426,60 @@ async def webapp_submit(payload: dict = Body(...)):
                     labels = [name for name, _ in sections] + [back_button[0]]
                     header = build_header_html(title, labels, header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang == "ar" else 0)
                     
-                    edited = False
-                    if ref:
-                        try:
-                            await application.bot.edit_message_text(
-                                text=header,
-                                chat_id=ref["chat_id"], 
-                                message_id=ref["message_id"],
-                                reply_markup=reply_markup, 
-                                parse_mode="HTML", 
-                                disable_web_page_preview=True
-                            )
-                            edited = True
-                            clear_form_ref(telegram_id)
-                        except Exception:
-                            logger.exception("Failed to edit form message for initial registration")
-                    if not edited:
-                        await application.bot.send_message(
+                    try:
+                        await application.bot.edit_message_text(
+                            text=header,
+                            chat_id=ref["chat_id"], 
+                            message_id=ref["message_id"],
+                            reply_markup=reply_markup, 
+                            parse_mode="HTML", 
+                            disable_web_page_preview=True
+                        )
+                        clear_form_ref(telegram_id)
+                    except Exception:
+                        # إذا فشل التعديل، إرسال رسالة جديدة
+                        sent = await application.bot.send_message(
                             chat_id=telegram_id,
                             text=header,
                             reply_markup=reply_markup,
                             parse_mode="HTML",
                             disable_web_page_preview=True
                         )
+                        save_form_ref(telegram_id, sent.chat_id, sent.message_id, origin="main_sections", lang=display_lang)
+                        
                 except Exception as e:
                     logger.exception(f"Failed to show main sections after initial registration: {e}")
+                    
+            return JSONResponse(content={"message": "Registered successfully."})
+
         else:
-           
+            # الحالة الافتراضية: عرض وسيطي التداول بعد التسجيل
             if display_lang == "ar":
                 header_title = "اختر وسيطك الآن"
-                labels = ["🏦 Oneroyall","🏦 Tickmill", back_label, accounts_label]
-                header = build_header_html(header_title, labels, header_emoji=HEADER_EMOJI, arabic_indent=1)
+                brokers_title = "🎉 تم تسجيل بياناتك بنجاح! يمكنك الآن فتح حساب تداول مع أحد الوسيطين المعتمدين:"
+                back_label = "🔙 الرجوع لتداول الفوركس"
+                accounts_label = "👤 بياناتي وحساباتي"
             else:
                 header_title = "Choose your broker now"
-                labels = ["🏦 Oneroyall","🏦 Tickmill", back_label, accounts_label]
-                header = build_header_html(header_title, labels, header_emoji=HEADER_EMOJI, arabic_indent=0)
+                brokers_title = "🎉 Your data has been registered successfully! You can now open a trading account with one of our approved brokers:"
+                back_label = "🔙 Back to Forex"
+                accounts_label = "👤 My Data & Accounts"
             
             keyboard = [
                 [InlineKeyboardButton("🏦 Oneroyall", url="https://vc.cabinet.oneroyal.com/ar/links/go/10118"),
-                 InlineKeyboardButton("🏦 Tickmill", url="https://my.tickmill.com?utm_campaign=ib_link&utm_content=IB60363655&utm_medium=Open+Account&utm_source=link&lp=https%3A%2F%2Fmy.tickmill.com%2Far%2Fsign-up%2F")]
+                 InlineKeyboardButton("🏦 Scope", url="https://my.tickmill.com?utm_campaign=ib_link&utm_content=IB60363655&utm_medium=Open+Account&utm_source=link&lp=https%3A%2F%2Fmy.tickmill.com%2Far%2Fsign-up%2F")]
             ]
 
             keyboard.append([InlineKeyboardButton(accounts_label, callback_data="my_accounts")])
             keyboard.append([InlineKeyboardButton(back_label, callback_data="forex_main")])
             reply_markup = InlineKeyboardMarkup(keyboard)
 
+            # محاولة تعديل الرسالة الأصلية إذا كان هناك مرجع
             edited = False
             if ref:
                 try:
                     await application.bot.edit_message_text(
-                        text=header + f"\n\n{brokers_title}",
+                        text=build_header_html(header_title, ["🏦 Oneroyall","🏦 Scope", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + f"\n\n{brokers_title}",
                         chat_id=ref["chat_id"], 
                         message_id=ref["message_id"],
                         reply_markup=reply_markup, 
@@ -3295,30 +3489,29 @@ async def webapp_submit(payload: dict = Body(...)):
                     edited = True
                     clear_form_ref(telegram_id)
                 except Exception:
-                    logger.exception("Failed to edit original form message; will send a fallback message.")
+                    logger.exception("Failed to edit original form message")
 
-            if not edited:
-                if telegram_id:
-                    try:
-                        sent = await application.bot.send_message(
-                            chat_id=telegram_id, 
-                            text=header + f"\n\n{brokers_title}", 
-                            reply_markup=reply_markup, 
-                            parse_mode="HTML", 
-                            disable_web_page_preview=True
-                        )
-                        save_form_ref(telegram_id, sent.chat_id, sent.message_id, origin="brokers", lang=display_lang)
-                    except Exception:
-                        logger.exception("Failed to send congrats message to user.")
-                else:
-                    logger.info("No telegram_id available from WebApp payload; skipping Telegram notification.")
+            # إذا لم يتم التعديل، إرسال رسالة جديدة
+            if not edited and telegram_id:
+                try:
+                    sent = await application.bot.send_message(
+                        chat_id=telegram_id, 
+                        text=build_header_html(header_title, ["🏦 Oneroyall","🏦 Scope", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + f"\n\n{brokers_title}", 
+                        reply_markup=reply_markup, 
+                        parse_mode="HTML", 
+                        disable_web_page_preview=True
+                    )
+                    save_form_ref(telegram_id, sent.chat_id, sent.message_id, origin="brokers", lang=display_lang)
+                except Exception:
+                    logger.exception("Failed to send brokers message to user")
 
+        # إرجاع الاستجابة النهائية
         if result == "created":
-            return JSONResponse(content={"message": "Saved successfully."})
+            return JSONResponse(content={"message": "Registered successfully."})
         elif result == "updated":
             return JSONResponse(content={"message": "Updated successfully."})
         else:
-            return JSONResponse(content={"message": "Saved (unknown state)."})
+            return JSONResponse(content={"message": "Processed successfully."})
             
     except Exception as e:
         logger.exception("Error in webapp_submit: %s", e)
@@ -3742,7 +3935,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard = [
             [InlineKeyboardButton("🏦 Oneroyall", url="https://vc.cabinet.oneroyal.com/ar/links/go/10118"),
-             InlineKeyboardButton("🏦 Tickmill", url="https://my.tickmill.com?utm_campaign=ib_link&utm_content=IB60363655&utm_medium=Open+Account&utm_source=link&lp=https%3A%2F%2Fmy.tickmill.com%2Far%2Fsign-up%2F")]
+             InlineKeyboardButton("🏦 Scope", url="https://my.tickmill.com?utm_campaign=ib_link&utm_content=IB60363655&utm_medium=Open+Account&utm_source=link&lp=https%3A%2F%2Fmy.tickmill.com%2Far%2Fsign-up%2F")]
         ]
 
         keyboard.append([InlineKeyboardButton(accounts_label, callback_data="my_accounts")])
@@ -3750,11 +3943,11 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
-            await q.edit_message_text(build_header_html(header_title, ["🏦 Oneroyall","🏦 Tickmill", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + f"\n\n{brokers_title}", reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+            await q.edit_message_text(build_header_html(header_title, ["🏦 Oneroyall","🏦 Scope", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + f"\n\n{brokers_title}", reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
             save_form_ref(user_id, q.message.chat_id, q.message.message_id, origin="brokers", lang=display_lang)
         except Exception:
             try:
-                sent = await context.bot.send_message(chat_id=q.message.chat_id, text=build_header_html(header_title, ["🏦 Oneroyall","🏦 Tickmill", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + f"\n\n{brokers_title}", reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+                sent = await context.bot.send_message(chat_id=q.message.chat_id, text=build_header_html(header_title, ["🏦 Oneroyall","🏦 Scope", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + f"\n\n{brokers_title}", reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
                 save_form_ref(user_id, sent.chat_id, sent.message_id, origin="brokers", lang=display_lang)
             except Exception:
                 logger.exception("Failed to show congrats screen for already-registered user.")
@@ -3958,7 +4151,7 @@ async def web_app_message_handler(update: Update, context: ContextTypes.DEFAULT_
 
     keyboard = [
         [InlineKeyboardButton("🏦 Oneroyall", url="https://vc.cabinet.oneroyal.com/ar/links/go/10118"),
-         InlineKeyboardButton("🏦 Tickmill", url="https://my.tickmill.com?utm_campaign=ib_link&utm_content=IB60363655&utm_medium=Open+Account&utm_source=link&lp=https%3A%2F%2Fmy.tickmill.com%2Far%2Fsign-up%2F")]
+         InlineKeyboardButton("🏦 Scope", url="https://my.tickmill.com?utm_campaign=ib_link&utm_content=IB60363655&utm_medium=Open+Account&utm_source=link&lp=https%3A%2F%2Fmy.tickmill.com%2Far%2Fsign-up%2F")]
     ]
 
     user_id = getattr(msg.from_user, "id", None)
@@ -3971,13 +4164,13 @@ async def web_app_message_handler(update: Update, context: ContextTypes.DEFAULT_
         ref = get_form_ref(user_id) if user_id else None
         if ref:
             try:
-                await msg.bot.edit_message_text(text=build_header_html(header_title, ["🏦 Oneroyall","🏦 Tickmill", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if lang=="ar" else 0) + f"\n\n{brokers_title}", chat_id=ref["chat_id"], message_id=ref["message_id"], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML", disable_web_page_preview=True)
+                await msg.bot.edit_message_text(text=build_header_html(header_title, ["🏦 Oneroyall","🏦 Scope", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if lang=="ar" else 0) + f"\n\n{brokers_title}", chat_id=ref["chat_id"], message_id=ref["message_id"], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML", disable_web_page_preview=True)
                 edited = True
                 clear_form_ref(user_id)
             except Exception:
                 logger.exception("Failed to edit form message in fallback path")
         if not edited:
-            sent = await msg.reply_text(build_header_html(header_title, ["🏦 Oneroyall","🏦 Tickmill", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if lang=="ar" else 0) + f"\n\n{brokers_title}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML", disable_web_page_preview=True)
+            sent = await msg.reply_text(build_header_html(header_title, ["🏦 Oneroyall","🏦 Scope", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if lang=="ar" else 0) + f"\n\n{brokers_title}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML", disable_web_page_preview=True)
             try:
                 if user_id:
                     save_form_ref(user_id, sent.chat_id, sent.message_id, origin="brokers", lang=lang)
@@ -4102,6 +4295,8 @@ application.add_handler(CallbackQueryHandler(handle_admin_back, pattern="^admin_
 application.add_handler(CallbackQueryHandler(handle_admin_actions, pattern="^(activate_account_|reject_account_)"))
 application.add_handler(CallbackQueryHandler(set_language, pattern="^lang_"))
 application.add_handler(CallbackQueryHandler(handle_notification_confirmation, pattern="^confirm_notification_"))
+application.add_handler(CallbackQueryHandler(admin_update_performances, pattern="^admin_update_performances$"))
+application.add_handler(CallbackQueryHandler(admin_reset_sequences, pattern="^admin_reset_sequences$"))
 application.add_handler(CallbackQueryHandler(menu_handler))
 # ===============================
 # Webhook setup
@@ -4109,6 +4304,14 @@ application.add_handler(CallbackQueryHandler(menu_handler))
 @app.get("/")
 def root():
     return {"status": "ok", "message": "Bot is running"}
+
+@app.get("/update-performances")
+def update_performances(key: str):
+    if key != SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid key")
+    
+    populate_account_performances()
+    return {"message": "Performances updated successfully"}
 
 @app.post(WEBHOOK_PATH)
 async def webhook(request: Request):
