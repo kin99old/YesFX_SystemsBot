@@ -254,22 +254,24 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if admin_lang == "ar":
         title = "لوحة التحكم الإدارية"
         buttons = [
-            "📢 البث والرسائل",
-            "📊 الإحصائيات والتقارير",
+            "📢 ارسل رسالة",
+            "📊 التقارير",
             "🏦 إدارة الحسابات",
             "⚙️ الإعدادات",
             "🚪 خروج"
         ]
+        description = "\n\nلوحة التحكم."
     else:
         title = "Admin Control Panel"
         buttons = [
-            "📢 Broadcasting & Messages",
-            "📊 Statistics & Reports",
-            "🏦 Accounts Management",
+            "📢 Send Message",
+            "📊 Reports",
+            "🛠 Management",
             "⚙️ Settings",
             "🚪 Exit"
         ]
-    
+        description = "\n\nControl panel."
+
     header = build_header_html(title, buttons, header_emoji=HEADER_EMOJI, arabic_indent=1 if admin_lang == "ar" else 0)
     
     keyboard = []
@@ -277,11 +279,11 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         row = buttons[i:i+2]
         keyboard_row = []
         for btn in row:
-            if btn == "📢 البث والرسائل" or btn == "📢 Broadcasting & Messages":
+            if btn == "📢 ارسل رسالة" or btn == "📢 Send Message":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_broadcast_menu"))
-            elif btn == "📊 الإحصائيات والتقارير" or btn == "📊 Statistics & Reports":
+            elif btn == "📊 التقارير" or btn == "📊 Reports":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_stats"))
-            elif btn == "🏦 إدارة الحسابات" or btn == "🏦 Accounts Management":
+            elif btn == "🏦 إدارة الحسابات" or btn == "🛠 Management":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_accounts_menu"))
             elif btn == "⚙️ الإعدادات" or btn == "⚙️ Settings":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_settings"))
@@ -290,7 +292,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton(buttons[-1], callback_data="admin_exit")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await update.message.reply_text(header, reply_markup=reply_markup, parse_mode="HTML")
+    await update.message.reply_text(header + description, reply_markup=reply_markup, parse_mode="HTML")
 
 async def admin_broadcast_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -300,23 +302,25 @@ async def admin_broadcast_menu(update: Update, context: ContextTypes.DEFAULT_TYP
     admin_lang = get_admin_language(user_id)
     
     if admin_lang == "ar":
-        title = "البث والرسائل"
+        title = "ارسل رسالة"
         buttons = [
-            "📢 بث للجميع",
-            "👥 بث للمسجلين",
-            "✅ بث للمقبولين",
-            "🔍 بث فردي",
+            "📢 للجميع",
+            "👥 للمسجلين فقط",
+            "✅ للمقبولين فقط",
+            "🔍 لشخص واحد",
             "🔙 رجوع"
         ]
+        description = "\n\nاختر الخيار."
     else:
-        title = "Broadcasting & Messages"
+        title = "Send Message"
         buttons = [
-            "📢 Broadcast to All",
+            "📢 To All",
             "👥 To Registered",
             "✅ To Approved",
-            "🔍 Individual Message",
+            "🔍 Individual",
             "🔙 Back"
         ]
+        description = "\n\nChoose option."
     
     header = build_header_html(title, buttons, header_emoji=HEADER_EMOJI, arabic_indent=1 if admin_lang == "ar" else 0)
     
@@ -325,20 +329,20 @@ async def admin_broadcast_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         row = buttons[i:i+2]
         keyboard_row = []
         for btn in row:
-            if btn == "📢 بث للجميع" or btn == "📢 Broadcast to All":
+            if btn == "📢 للجميع" or btn == "📢 To All":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_broadcast_all"))
-            elif btn == "👥 بث للمسجلين" or btn == "👥 To Registered":
+            elif btn == "👥 للمسجلين فقط" or btn == "👥 To Registered":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_broadcast_registered"))
-            elif btn == "✅ بث للمقبولين" or btn == "✅ To Approved":
+            elif btn == "✅ للمقبولين فقط" or btn == "✅ To Approved":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_broadcast_approved"))
-            elif btn == "🔍 بث فردي" or btn == "🔍 Individual Message":
+            elif btn == "🔍 لشخص واحد" or btn == "🔍 Individual":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_individual_message"))
         keyboard.append(keyboard_row)
     
     keyboard.append([InlineKeyboardButton(buttons[-1], callback_data="admin_main")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML")
+    await q.edit_message_text(header + description, reply_markup=reply_markup, parse_mode="HTML")
 
 async def admin_accounts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -350,14 +354,15 @@ async def admin_accounts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
     if admin_lang == "ar":
         title = "إدارة الحسابات"
         buttons = [
-            "⏳ الحسابات قيد المراجعة",
-            "✅ الحسابات المقبولة",
-            "❌ الحسابات المرفوضة",
-            "🔍 بحث عن حساب",
+            "⏳ قيد المراجعة",
+            "✅ المقبولة",
+            "❌ المرفوضة",
+            "🔍 بحث",
             "🔙 رجوع"
         ]
+        description = "\n\nقسم الإدارة."
     else:
-        title = "Accounts Management"
+        title = "Management"
         buttons = [
             "⏳ Under Review",
             "✅ Approved",
@@ -365,6 +370,7 @@ async def admin_accounts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
             "🔍 Search Account",
             "🔙 Back"
         ]
+        description = "\n\nManagement section."
     
     header = build_header_html(title, buttons, header_emoji=HEADER_EMOJI, arabic_indent=1 if admin_lang == "ar" else 0)
     
@@ -373,20 +379,20 @@ async def admin_accounts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
         row = buttons[i:i+2]
         keyboard_row = []
         for btn in row:
-            if btn == "⏳ الحسابات قيد المراجعة" or btn == "⏳ Under Review":
+            if btn == "⏳ قيد المراجعة" or btn == "⏳ Under Review":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_accounts_under_review"))
-            elif btn == "✅ الحسابات المقبولة" or btn == "✅ Approved":
+            elif btn == "✅ المقبولة" or btn == "✅ Approved":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_accounts_approved"))
-            elif btn == "❌ الحسابات المرفوضة" or btn == "❌ Rejected":
+            elif btn == "❌ المرفوضة" or btn == "❌ Rejected":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_accounts_rejected"))
-            elif btn == "🔍 بحث عن حساب" or btn == "🔍 Search Account":
+            elif btn == "🔍 بحث" or btn == "🔍 Search Account":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_accounts_search"))
         keyboard.append(keyboard_row)
     
     keyboard.append([InlineKeyboardButton(buttons[-1], callback_data="admin_main")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML")
+    await q.edit_message_text(header + description, reply_markup=reply_markup, parse_mode="HTML")
 
 async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -399,18 +405,20 @@ async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         title = "الإعدادات"
         buttons = [
             "🌐 تغيير اللغة",
-            "🔄 تحديث الأداء",
-            "🔄 إعادة تعيين التسلسل",
+            "🔄 تحديث قاعدة البيانات",
+            "🔄 تحديث تسلسل قاعدة البيانات",
             "🔙 رجوع"
         ]
+        description = "\n\nقسم الإعدادات."
     else:
         title = "Settings"
         buttons = [
             "🌐 Change Language",
-            "🔄 Update Performances",
+            "🔄 Update Database",
             "🔄 Reset Sequences",
             "🔙 Back"
         ]
+        description = "\n\nSettings section."
     
     header = build_header_html(title, buttons, header_emoji=HEADER_EMOJI, arabic_indent=1 if admin_lang == "ar" else 0)
     
@@ -422,7 +430,7 @@ async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML")
+    await q.edit_message_text(header + description, reply_markup=reply_markup, parse_mode="HTML")
 
 async def admin_update_performances(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -482,6 +490,7 @@ async def admin_change_language(update: Update, context: ContextTypes.DEFAULT_TY
             "🇺🇸 English",
             "🔙 رجوع"
         ]
+        description = "\n\nاختر اللغة."
     else:
         title = "Change Language"
         buttons = [
@@ -489,6 +498,7 @@ async def admin_change_language(update: Update, context: ContextTypes.DEFAULT_TY
             "🇪🇬 العربية",
             "🔙 Back"
         ]
+        description = "\n\nChoose language."
     
     header = build_header_html(title, buttons, header_emoji=HEADER_EMOJI, arabic_indent=1 if admin_lang == "ar" else 0)
     
@@ -501,7 +511,7 @@ async def admin_change_language(update: Update, context: ContextTypes.DEFAULT_TY
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML")
+    await q.edit_message_text(header + description, reply_markup=reply_markup, parse_mode="HTML")
 
 async def admin_set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -532,7 +542,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rejected_accounts = len(get_accounts_by_status("rejected"))
 
     if admin_lang == "ar":
-        title = "الإحصائيات والتقارير"
+        title = "التقارير"
         stats_text = f"""
 📊 <b>إجمالي المشتركين:</b> {total_subscribers}
 👥 <b>المسجلين:</b> {registered_users}
@@ -542,9 +552,10 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ✅ <b>الحسابات النشطة:</b> {active_accounts}
 ❌ <b>الحسابات المرفوضة:</b> {rejected_accounts}
         """
+        description = "\n\nالإحصائيات الحالية."
         back_btn = "🔙 رجوع"
     else:
-        title = "Statistics & Reports"
+        title = "Reports"
         stats_text = f"""
 📊 <b>Total Subscribers:</b> {total_subscribers}
 👥 <b>Registered Users:</b> {registered_users}
@@ -554,6 +565,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ✅ <b>Active Accounts:</b> {active_accounts}
 ❌ <b>Rejected Accounts:</b> {rejected_accounts}
         """
+        description = "\n\nCurrent statistics."
         back_btn = "🔙 Back"
     
     header = build_header_html(title, [back_btn], header_emoji=HEADER_EMOJI, arabic_indent=1 if admin_lang == "ar" else 0)
@@ -561,7 +573,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(back_btn, callback_data="admin_main")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await q.edit_message_text(header + stats_text, reply_markup=reply_markup, parse_mode="HTML")
+    await q.edit_message_text(header + description + stats_text, reply_markup=reply_markup, parse_mode="HTML")
 
 def get_accounts_by_status(status: str) -> List[TradingAccount]:
     try:
@@ -585,18 +597,20 @@ async def admin_accounts_under_review(update: Update, context: ContextTypes.DEFA
     if admin_lang == "ar":
         title = "الحسابات قيد المراجعة"
         no_accounts = "لا توجد حسابات قيد المراجعة حالياً"
+        description = "\n\nالحسابات قيد المراجعة."
         back_btn = "🔙 رجوع"
     else:
         title = "Accounts Under Review"
         no_accounts = "No accounts under review currently"
+        description = "\n\nAccounts under review."
         back_btn = "🔙 Back"
     
     header = build_header_html(title, [back_btn], header_emoji=HEADER_EMOJI, arabic_indent=1 if admin_lang == "ar" else 0)
     
     if not accounts:
-        text = header + f"\n\n{no_accounts}"
+        text = header + description + f"\n\n{no_accounts}"
     else:
-        text = header + "\n\n"
+        text = header + description + "\n\n"
         for acc in accounts:
             sub = acc.subscriber
             text += f"🏦 {acc.broker_name} - {acc.account_number}\n👤 {sub.name} ({sub.telegram_id})\n\n"
@@ -631,7 +645,7 @@ async def admin_exit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = "✅ تم الخروج من لوحة الإدارة" if admin_lang == "ar" else "✅ Exited admin panel"
     
     await q.edit_message_text(msg)
-    await show_main_sections(update, context, admin_lang)
+    await start(update, context)
 
 async def handle_rejection_reason(update: Update, context: ContextTypes.DEFAULT_TYPE):
    
@@ -936,21 +950,23 @@ async def admin_panel_from_callback(update: Update, context: ContextTypes.DEFAUL
     if admin_lang == "ar":
         title = "لوحة التحكم الإدارية"
         buttons = [
-            "📢 البث والرسائل",
-            "📊 الإحصائيات والتقارير",
+            "📢 ارسل رسالة",
+            "📊 التقارير",
             "🏦 إدارة الحسابات",
             "⚙️ الإعدادات",
             "🚪 خروج"
         ]
+        description = "\n\nلوحة التحكم."
     else:
         title = "Admin Control Panel"
         buttons = [
-            "📢 Broadcasting & Messages",
-            "📊 Statistics & Reports",
-            "🏦 Accounts Management",
+            "📢 Send Message",
+            "📊 Reports",
+            "🛠 Management",
             "⚙️ Settings",
             "🚪 Exit"
         ]
+        description = "\n\nControl panel."
     
     header = build_header_html(title, buttons, header_emoji=HEADER_EMOJI, arabic_indent=1 if admin_lang == "ar" else 0)
     
@@ -959,11 +975,11 @@ async def admin_panel_from_callback(update: Update, context: ContextTypes.DEFAUL
         row = buttons[i:i+2]
         keyboard_row = []
         for btn in row:
-            if btn == "📢 البث والرسائل" or btn == "📢 Broadcasting & Messages":
+            if btn == "📢 ارسل رسالة" or btn == "📢 Send Message":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_broadcast_menu"))
-            elif btn == "📊 الإحصائيات والتقارير" or btn == "📊 Statistics & Reports":
+            elif btn == "📊 التقارير" or btn == "📊 Reports":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_stats"))
-            elif btn == "🏦 إدارة الحسابات" or btn == "🏦 Accounts Management":
+            elif btn == "🏦 إدارة الحسابات" or btn == "🛠 Management":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_accounts_menu"))
             elif btn == "⚙️ الإعدادات" or btn == "⚙️ Settings":
                 keyboard_row.append(InlineKeyboardButton(btn, callback_data="admin_settings"))
@@ -972,7 +988,7 @@ async def admin_panel_from_callback(update: Update, context: ContextTypes.DEFAUL
     keyboard.append([InlineKeyboardButton(buttons[-1], callback_data="admin_exit")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML")
+    await q.edit_message_text(header + description, reply_markup=reply_markup, parse_mode="HTML")
 
 async def handle_admin_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
    
@@ -1776,9 +1792,9 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         lang = context.user_data.get("lang", "ar")
     
     if lang == "ar":
-        response_text = "⚠️ يمكنك استخدام الأزرار في القائمة للتفاعل مع البوت"
+        response_text = "⚠️ استخدم الأزرار للتفاعل."
     else:
-        response_text = "⚠️ Please use the buttons in the menu to interact with the bot"
+        response_text = "⚠️ Use buttons to interact."
     
     try:
         await update.message.reply_text(response_text)
@@ -1806,7 +1822,7 @@ async def send_admin_notification(action_type: str, account_data: dict, subscrib
                 
                 if action_type == "new_account":
                     if admin_lang == "ar":
-                        title = "🆕 حساب تداول جديد"
+                        title = "🛎 حساب تداول جديد"
                         action_desc = "تم إضافة حساب تداول جديد"
                     else:
                         title = "🆕 New Trading Account"
@@ -1950,18 +1966,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     labels = ["🇺🇸 English", "🇪🇬 العربية"]
-    header = build_header_html("Language | اللغة", labels, header_emoji=HEADER_EMOJI)
+    header = build_header_html("\u200Fاللغة | Language", labels, header_emoji=HEADER_EMOJI)
+    description = "\n\nاختر اللغة."
     
     if update.callback_query:
         q = update.callback_query
         await q.answer()
         try:
-            await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+            await q.edit_message_text(header + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
         except Exception:
-            await context.bot.send_message(chat_id=q.message.chat_id, text=header, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+            await context.bot.send_message(chat_id=q.message.chat_id, text=header + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
     else:
         if update.message:
-            await update.message.reply_text(header, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+            await update.message.reply_text(header + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
 
 async def show_main_sections(update: Update, context: ContextTypes.DEFAULT_TYPE, lang: str):
     if not update.callback_query:
@@ -1974,15 +1991,15 @@ async def show_main_sections(update: Update, context: ContextTypes.DEFAULT_TYPE,
         set_admin_language(user_id, lang)
     
     if lang == "ar":
-       #sections = [("💹 تداول الفوركس", "forex_main"), ("💻 خدمات البرمجة", "dev_main"), ("🤝 طلب وكالة YesFX", "agency_main")]
         sections = [("💹 تداول الفوركس", "forex_main"), ("💻 خدمات البرمجة", "dev_main")]
         title = "الأقسام الرئيسية"
         back_button = ("🔙 الرجوع للغة", "back_language")
+        description = "\n\nاختر القسم."
     else:
-       #sections = [("💹 Forex Trading", "forex_main"), ("💻 Programming Services", "dev_main"), ("🤝 YesFX Partnership", "agency_main")]
         sections = [("💹 Forex Trading", "forex_main"), ("💻 Programming Services", "dev_main")]
         title = "Main Sections"
         back_button = ("🔙 Back to language", "back_language")
+        description = "\n\nChoose section."
 
     keyboard = [[InlineKeyboardButton(name, callback_data=cb)] for name, cb in sections]
     keyboard.append([InlineKeyboardButton(back_button[0], callback_data=back_button[1])])
@@ -1990,9 +2007,9 @@ async def show_main_sections(update: Update, context: ContextTypes.DEFAULT_TYPE,
     labels = [name for name, _ in sections] + [back_button[0]]
     header = build_header_html(title, labels, header_emoji=HEADER_EMOJI, arabic_indent=1 if lang == "ar" else 0)
     try:
-        await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+        await q.edit_message_text(header + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
     except Exception:
-        await context.bot.send_message(chat_id=q.message.chat_id, text=header, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+        await context.bot.send_message(chat_id=q.message.chat_id, text=header + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
 
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -2014,11 +2031,13 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
             back_label_text = "🔙 الرجوع للغة"
             open_label = "📝 افتح نموذج التسجيل"
             header_emoji_for_lang = HEADER_EMOJI
+            description = "\n\nأكمل البيانات."
         else:
             title = "Please enter your data"
             back_label_text = "🔙 Back to language"
             open_label = "📝 Open registration form"
             header_emoji_for_lang = "✨"
+            description = "\n\nComplete data."
 
         labels = [open_label, back_label_text]
         header = build_header_html(title, labels, header_emoji=header_emoji_for_lang, arabic_indent=1 if lang == "ar" else 0)
@@ -2035,11 +2054,11 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
-            await q.edit_message_text(header, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+            await q.edit_message_text(header + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
             save_form_ref(user_id, q.message.chat_id, q.message.message_id, origin="initial_registration", lang=lang)
         except Exception:
             try:
-                sent = await context.bot.send_message(chat_id=q.message.chat_id, text=header, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+                sent = await context.bot.send_message(chat_id=q.message.chat_id, text=header + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
                 save_form_ref(user_id, sent.chat_id, sent.message_id, origin="initial_registration", lang=lang)
             except Exception:
                 logger.exception("Failed to show initial registration form.")
@@ -2836,7 +2855,7 @@ def webapp_edit_accounts(request: Request):
             const acc = accounts.find(a => a.id == accountId);
             
             if (acc) {{
-              // تعيين معرف الحساب الحالي وحالته
+              // تعيين معرف مع الحساب الحالي وحالته
               currentAccountId = acc.id;
               currentAccountStatus = acc.status;
               document.getElementById('current_account_id').value = acc.id;
@@ -2857,6 +2876,7 @@ def webapp_edit_accounts(request: Request):
               
               statusEl.textContent = '';
               statusEl.style.color = '#b00';
+              statusEl.marginTop = '10px';
             }} else {{
               statusEl.textContent = '{ "الحساب غير موجود" if is_ar else "Account not found" }';
               clearForm();
@@ -3055,6 +3075,244 @@ def webapp_edit_accounts(request: Request):
     """
     return HTMLResponse(content=html, status_code=200)
 
+@app.get("/webapp/free-trial")
+def webapp_free_trial(request: Request):
+    lang = (request.query_params.get("lang") or "ar").lower()
+    is_ar = lang == "ar"
+
+    page_title = "🆓 تجربة النسخ المجاني" if is_ar else "🆓 Free Copy Trial"
+    labels = {
+        "broker": "اسم الشركة" if is_ar else "Broker Name",
+        "account_type": "نوع الحساب" if is_ar else "Account Type",
+        "platform_type": "نوع المنصة" if is_ar else "Platform Type",
+        "account_number": "رقم الحساب" if is_ar else "Account Number",
+        "password": "كلمة السر" if is_ar else "Password",
+        "server": "السيرفر" if is_ar else "Server",
+        "currency_type": "نوع الحساب" if is_ar else "Account Currency",
+        "balance": "رصيد الحساب" if is_ar else "Account Balance",
+        "submit": "تسجيل" if is_ar else "Submit",
+        "close": "إغلاق" if is_ar else "Close",
+        "error": "فشل في الاتصال بالخادم" if is_ar else "Failed to connect to server",
+        "required_field": "هذا الحقل مطلوب" if is_ar else "This field is required",
+        "min_balance_cent": "الحد الأدنى للرصيد هو 50 للحسابات Cent" if is_ar else "Minimum balance is 50 for Cent accounts",
+        "min_balance_dollar": "الحد الأدنى للرصيد هو 5000 للحسابات Dollar" if is_ar else "Minimum balance is 5000 for Dollar accounts",
+        "warning": "الشركة غير مسؤولة عن أي خسائر أو أضرار قد تحدث نتيجة سحب الرصيد أثناء تنفيذ الصفقات." if is_ar else "The company is not responsible for any losses or damages that may occur as a result of withdrawing the balance during the execution of trades."
+    }
+    dir_attr = "rtl" if is_ar else "ltr"
+    text_align = "right" if is_ar else "left"
+
+    form_labels = [
+        labels['broker'],
+        labels['account_type'],
+        labels['platform_type'],
+        labels['account_number'],
+        labels['password'],
+        labels['server'],
+        labels['currency_type'],
+        labels['balance']
+    ]
+    header_html = build_header_html(page_title, form_labels, header_emoji=HEADER_EMOJI, underline_enabled=False, arabic_indent=1 if lang == "ar" else 0)
+
+    html = f"""
+    <!doctype html>
+    <html lang="{ 'ar' if is_ar else 'en' }" dir="{dir_attr}">
+    <head>
+      <meta charset="utf-8"/>
+      <meta name="viewport" content="width=device-width,initial-scale=1"/>
+      <title>{page_title}</title>
+      <style>
+        body{{font-family:Arial;padding:16px;background:#f7f7f7;direction:{dir_attr};}}
+        .card{{max-width:600px;margin:24px auto;padding:16px;border-radius:10px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.1)}}
+        label{{display:block;margin-top:10px;font-weight:600;text-align:{text_align}}}
+        input, select{{width:100%;padding:10px;margin-top:6px;border:1px solid #ccc;border-radius:6px;font-size:16px;}}
+        .btn{{display:inline-block;margin-top:16px;padding:10px 14px;border-radius:8px;border:none;font-weight:700;cursor:pointer}}
+        .btn-primary{{background:#1E90FF;color:white}}
+        .btn-ghost{{background:transparent;border:1px solid #ccc}}
+        .small{{font-size:13px;color:#666;text-align:{text_align}}}
+        .form-row{{display:flex;gap:10px;margin-top:10px;}}
+        .form-row > div{{flex:1;}}
+        .warning-text{{font-size:12px;color:#ff6b35;margin-top:8px;text-align:{text_align};font-weight:500;}}
+        .header-container{{text-align:{text_align}; margin-bottom:20px;}}
+        .required{{color:#ff4444;}}
+        .field-error{{color:#ff4444;font-size:12px;margin-top:2px;display:none;}}
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header-container">
+          {header_html}
+        </div>
+        
+        <label>{labels['broker']} <span class="required">*</span></label>
+        <input id="broker" placeholder="e.g. Oneroyal" required />
+        <div id="broker_error" class="field-error">{labels['required_field']}</div>
+
+        <label>{labels['account_type']} <span class="required">*</span></label>
+        <select id="account_type" required>
+          <option value="">{ 'اختر' if is_ar else 'Select' }</option>
+          <option value="{ 'حقيقي' if is_ar else 'Real' }">{ 'حقيقي' if is_ar else 'Real' }</option>
+          <option value="{ 'تجريبي' if is_ar else 'Demo' }">{ 'تجريبي' if is_ar else 'Demo' }</option>
+
+        </select>
+        <div id="account_type_error" class="field-error">{labels['required_field']}</div>
+
+        <label>{labels['platform_type']} <span class="required">*</span></label>
+        <select id="platform_type" required>
+          <option value="MT4">MT4</option>
+        </select>
+        <div id="platform_type_error" class="field-error">{labels['required_field']}</div>
+
+        <div class="form-row">
+          <div>
+            <label>{labels['account_number']} <span class="required">*</span></label>
+            <input id="account_number" placeholder="123456" required />
+            <div id="account_number_error" class="field-error">{labels['required_field']}</div>
+          </div>
+          <div>
+            <label>{labels['password']} <span class="required">*</span></label>
+            <input id="password" type="password" placeholder="••••••••" required />
+            <div id="password_error" class="field-error">{labels['required_field']}</div>
+          </div>
+        </div>
+
+        <label>{labels['server']} <span class="required">*</span></label>
+        <input id="server" placeholder="Oneroyal-Live" required />
+        <div id="server_error" class="field-error">{labels['required_field']}</div>
+
+        <label>{labels['currency_type']} <span class="required">*</span></label>
+        <select id="currency_type" required>
+          <option value="">{ 'اختر' if is_ar else 'Select' }</option>
+          <option value="Cent">Cent</option>
+          <option value="Dollar">Dollar</option>
+        </select>
+        <div id="currency_type_error" class="field-error">{labels['required_field']}</div>
+
+        <label>{labels['balance']} <span class="required">*</span></label>
+        <input id="balance" type="number" placeholder="0" min="0" required />
+        <div id="balance_error" class="field-error"></div>
+
+        <div class="warning-text">{labels['warning']}</div>
+
+        <div style="margin-top:12px;text-align:{text_align}">
+          <button class="btn btn-primary" id="submit">{labels['submit']}</button>
+          <button class="btn btn-ghost" id="close">{labels['close']}</button>
+        </div>
+        <div id="status" class="small" style="margin-top:10px;color:#b00;"></div>
+      </div>
+
+      <script src="https://telegram.org/js/telegram-web-app.js"></script>
+      <script>
+        const tg = window.Telegram.WebApp || {{}};
+        try{{tg.expand();}}catch(e){{}}
+        const statusEl = document.getElementById('status');
+
+        // دالة للتحقق من الحقول
+        function validateForm() {{
+          const fields = [
+            'broker', 'account_type', 'platform_type', 'account_number', 'password', 
+            'server', 'currency_type', 'balance'
+          ];
+          let isValid = true;
+          
+          fields.forEach(id => {{
+            const input = document.getElementById(id);
+            const value = input.value.trim();
+            const errorEl = document.getElementById(id + '_error');
+            
+            if (errorEl) errorEl.style.display = 'none';
+            input.style.borderColor = '#ccc';
+            
+            if (!value) {{
+              if (errorEl) {{
+                errorEl.textContent = '{labels['required_field']}';
+                errorEl.style.display = 'block';
+              }}
+              input.style.borderColor = '#ff4444';
+              isValid = false;
+            }}
+          }});
+
+          // التحقق من رصيد الحساب
+          const currencyType = document.getElementById('currency_type').value;
+          const balance = parseFloat(document.getElementById('balance').value);
+          const balanceError = document.getElementById('balance_error');
+          
+          if (currencyType === 'Cent' && balance < 50) {{
+            balanceError.textContent = '{labels['min_balance_cent']}';
+            balanceError.style.display = 'block';
+            document.getElementById('balance').style.borderColor = '#ff4444';
+            isValid = false;
+          }} else if (currencyType === 'Dollar' && balance < 5000) {{
+            balanceError.textContent = '{labels['min_balance_dollar']}';
+            balanceError.style.display = 'block';
+            document.getElementById('balance').style.borderColor = '#ff4444';
+            isValid = false;
+          }}
+
+          return isValid;
+        }}
+
+        async function submitForm(){{
+          if (!validateForm()) {{
+            statusEl.textContent = '{ "يرجى ملء جميع الحقول المطلوبة بشكل صحيح" if is_ar else "Please fill all required fields correctly" }';
+            statusEl.style.color = '#ff4444';
+            return;
+          }}
+
+          const payload = {{
+            broker: document.getElementById('broker').value.trim(),
+            account_type: document.getElementById('account_type').value.trim(),
+            platform_type: document.getElementById('platform_type').value.trim(),
+            account_number: document.getElementById('account_number').value.trim(),
+            password: document.getElementById('password').value.trim(),
+            server: document.getElementById('server').value.trim(),
+            currency_type: document.getElementById('currency_type').value.trim(),
+            balance: document.getElementById('balance').value.trim(),
+            tg_user: tg.initDataUnsafe.user,
+            lang: "{lang}"
+          }};
+
+          try{{
+            statusEl.textContent = '{ "جاري الحفظ..." if is_ar else "Saving..." }';
+            statusEl.style.color = '#1E90FF';
+            
+            const resp = await fetch(window.location.origin + '/webapp/free-trial/submit', {{
+              method:'POST',
+              headers:{{'Content-Type':'application/json'}},
+              body:JSON.stringify(payload)
+            }});
+            const data = await resp.json();
+            if(resp.ok){{
+              statusEl.style.color='green';
+              statusEl.textContent=data.message||'{ "تم التسجيل بنجاح" if is_ar else "Registered successfully" }';
+              setTimeout(()=>{{try{{tg.close();}}catch(e){{}}}},1500);
+              try{{tg.sendData(JSON.stringify({{status:'sent',type:'free_trial', lang:"{lang}" }}));}}catch(e){{}}
+            }}else{{
+              statusEl.textContent=data.error||'{labels["error"]}';
+              statusEl.style.color='#ff4444';
+            }}
+          }}catch(e){{
+            statusEl.textContent='{labels["error"]}: '+e.message;
+            statusEl.style.color='#ff4444';
+          }}
+        }}
+
+        document.querySelectorAll('input, select').forEach(element => {{
+          element.addEventListener('input', function() {{
+            const errorEl = document.getElementById(this.id + '_error');
+            if (errorEl) errorEl.style.display = 'none';
+            this.style.borderColor = '#ccc';
+          }});
+        }});
+
+        document.getElementById('submit').addEventListener('click',submitForm);
+        document.getElementById('close').addEventListener('click',()=>{{try{{tg.close();}}catch(e){{}}}});
+      </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html, status_code=200)
+
 # ===============================
 # API for trading accounts
 # ===============================
@@ -3141,6 +3399,7 @@ async def refresh_user_accounts_interface(telegram_id: int, lang: str, chat_id: 
         user_info = f"👤 <b>الاسم:</b> {updated_data['name']}\n📧 <b>البريد:</b> {updated_data['email']}\n📞 <b>الهاتف:</b> {updated_data['phone']}"
         accounts_header = "\n\n🏦 <b>حسابات التداول:</b>"
         no_accounts = "\nلا توجد حسابات مسجلة بعد."
+        description = "\n\nبياناتك وحساباتك."
     else:
         header_title = "👤 My Data & Accounts"
         add_account_label = "➕ Add Trading Account"
@@ -3155,8 +3414,9 @@ async def refresh_user_accounts_interface(telegram_id: int, lang: str, chat_id: 
         user_info = f"👤 <b>Name:</b> {updated_data['name']}\n📧 <b>Email:</b> {updated_data['email']}\n📞 <b>Phone:</b> {updated_data['phone']}"
         accounts_header = "\n\n🏦 <b>Trading Accounts:</b>"
         no_accounts = "\nNo trading accounts registered yet."
+        description = "\n\nYour data and accounts."
 
-    updated_message = f"{header}\n\n{user_info}{accounts_header}\n"
+    updated_message = f"{header}{description}\n\n{user_info}{accounts_header}\n"
     
     today = datetime.now()
     
@@ -3206,8 +3466,8 @@ async def refresh_user_accounts_interface(telegram_id: int, lang: str, chat_id: 
                         
                         if initial > 0:
                             total_value = current + withdrawals
-                            profit_amount = total_value - initial
-                            profit_percentage = (profit_amount / initial) * 100
+                            profit = total_value - initial
+                            profit_percentage = (profit / initial) * 100
                             
                             account_text += f"   📈 <b>العائد المحقق:</b> {profit_percentage:.0f}% خلال {period_text}\n"
                             
@@ -3217,7 +3477,7 @@ async def refresh_user_accounts_interface(telegram_id: int, lang: str, chat_id: 
                     account_text += f"   📈 <b>العائد المحقق:</b> يتطلب بيانات كاملة\n"
                     
             else:
-                account_text = f"\n{i}. <b>{acc['broker_name']}</b> - {acc['account_number']}\n   🖥️ {acc['server']}\n   📊 <b>Status:</b> {status_text}\n"
+                account_text = f"\n\u200E{i}. <b>{acc['broker_name']}</b> - {acc['account_number']}\n   🖥️ {acc['server']}\n   📊 <b>Status:</b> {status_text}\n"
                 if acc.get('initial_balance'):
                     account_text += f"   💰 Initial Balance: {acc['initial_balance']}\n"
                 if acc.get('current_balance'):
@@ -3266,8 +3526,8 @@ async def refresh_user_accounts_interface(telegram_id: int, lang: str, chat_id: 
                         
                         if initial > 0:
                             total_value = current + withdrawals
-                            profit_amount = total_value - initial
-                            profit_percentage = (profit_amount / initial) * 100
+                            profit = total_value - initial
+                            profit_percentage = (profit / initial) * 100
                             
                             account_text += f"   📈 <b>Achieved Return:</b> {profit_percentage:.0f}% over {period_text}\n"
                             
@@ -3353,7 +3613,7 @@ async def webapp_submit(payload: dict = Body(...)):
         if not PHONE_RE.match(phone):
             return JSONResponse(status_code=400, content={"error": "رقم الهاتف غير صالح."})
 
-        # ✅ تحديد اللغة بشكل واضح
+        # ✅ تحديد اللغة بشكل بشكل واضح
         if page_lang in ("ar", "en"):
             detected_lang = page_lang
         else:
@@ -3435,10 +3695,12 @@ async def webapp_submit(payload: dict = Body(...)):
                         sections = [("💹 تداول الفوركس", "forex_main"), ("💻 خدمات البرمجة", "dev_main")]
                         title = "الأقسام الرئيسية"
                         back_button = ("🔙 الرجوع للغة", "back_language")
+                        description = "\n\nاختر القسم."
                     else:
                         sections = [("💹 Forex Trading", "forex_main"), ("💻 Programming Services", "dev_main")]
                         title = "Main Sections"
                         back_button = ("🔙 Back to language", "back_language")
+                        description = "\n\nChoose section."
 
                     keyboard = [[InlineKeyboardButton(name, callback_data=cb)] for name, cb in sections]
                     keyboard.append([InlineKeyboardButton(back_button[0], callback_data=back_button[1])])
@@ -3448,7 +3710,7 @@ async def webapp_submit(payload: dict = Body(...)):
 
                     try:
                         await application.bot.edit_message_text(
-                            text=header,
+                            text=header + description,
                             chat_id=ref["chat_id"],
                             message_id=ref["message_id"],
                             reply_markup=reply_markup,
@@ -3457,14 +3719,17 @@ async def webapp_submit(payload: dict = Body(...)):
                         )
                         clear_form_ref(telegram_id)
                     except Exception:
-                        sent = await application.bot.send_message(
-                            chat_id=telegram_id,
-                            text=header,
-                            reply_markup=reply_markup,
-                            parse_mode="HTML",
-                            disable_web_page_preview=True
-                        )
-                        save_form_ref(telegram_id, sent.chat_id, sent.message_id, origin="main_sections", lang=display_lang)
+                        try:
+                            sent = await application.bot.send_message(
+                                chat_id=telegram_id,
+                                text=header + description,
+                                reply_markup=reply_markup,
+                                parse_mode="HTML",
+                                disable_web_page_preview=True
+                            )
+                            save_form_ref(telegram_id, sent.chat_id, sent.message_id, origin="main_sections", lang=display_lang)
+                        except Exception:
+                            logger.exception("Failed to send main sections message after initial registration")
 
                 except Exception as e:
                     logger.exception(f"Failed to show main sections after initial registration: {e}")
@@ -3476,12 +3741,12 @@ async def webapp_submit(payload: dict = Body(...)):
             # الحالة الافتراضية: عرض وسطاء التداول بعد التسجيل
             if display_lang == "ar":
                 header_title = "اختر وسيطك الآن"
-                brokers_title = "🎉 تم تسجيل بياناتك بنجاح! يمكنك الآن فتح حساب تداول مع أحد الوسيطين المعتمدين:"
+                brokers_title = ""
                 back_label = "🔙 الرجوع لتداول الفوركس"
                 accounts_label = "👤 بياناتي وحساباتي"
             else:
                 header_title = "Choose your broker now"
-                brokers_title = "🎉 Your data has been registered successfully! You can now open a trading account with one of our approved brokers:"
+                brokers_title = ""
                 back_label = "🔙 Back to Forex"
                 accounts_label = "👤 My Data & Accounts"
 
@@ -3552,11 +3817,12 @@ async def show_user_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
         
         text = "⚠️ لم تقم بالتسجيل بعد. يرجى التسجيل أولاً." if lang == "ar" else "⚠️ You haven't registered yet. Please register first."
+        description = "\n\n" 
         
         if update.callback_query and update.callback_query.message:
-            await update.callback_query.edit_message_text(header + f"\n\n{text}")
+            await update.callback_query.edit_message_text(header + description + text)
         else:
-            await context.bot.send_message(chat_id=telegram_id, text=header + f"\n\n{text}")
+            await context.bot.send_message(chat_id=telegram_id, text=header + description + text)
         return
 
     if lang == "ar":
@@ -3575,7 +3841,7 @@ async def show_user_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE,
             header_emoji=HEADER_EMOJI,
             arabic_indent=1
         )
-        
+        description = "\n\nبياناتك وحساباتك."
         user_info = f"👤 <b>الاسم:</b> {user_data['name']}\n📧 <b>البريد:</b> {user_data['email']}\n📞 <b>الهاتف:</b> {user_data['phone']}"
         accounts_header = "\n\n🏦 <b>حسابات التداول:</b>"
         no_accounts = "\nلا توجد حسابات مسجلة بعد."
@@ -3596,12 +3862,12 @@ async def show_user_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE,
             header_emoji=HEADER_EMOJI,
             arabic_indent=0
         )
-     
+        description = "\n\nYour data and accounts."
         user_info = f"👤 <b>Name:</b> {user_data['name']}\n📧 <b>Email:</b> {user_data['email']}\n📞 <b>Phone:</b> {user_data['phone']}"
         accounts_header = "\n\n🏦 <b>Trading Accounts:</b>"
         no_accounts = "\nNo trading accounts registered yet."
 
-    message = f"{header}\n\n{user_info}{accounts_header}\n"
+    message = f"{header}{description}\n\n{user_info}{accounts_header}\n"
     
     today = datetime.now()  
     
@@ -3659,10 +3925,10 @@ async def show_user_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE,
                         
                         if initial > 0:
                             total_value = current + withdrawals
-                            profit_amount = total_value - initial
-                            profit_percentage = (profit_amount / initial) * 100
+                            profit = total_value - initial
+                            profit_percentage = (profit / initial) * 100
                             
-                            
+                           
                             account_text += f"   📈 <b>العائد المحقق:</b> {profit_percentage:.0f}% خلال {period_text}\n"
                             
                     except (ValueError, TypeError) as e:
@@ -3728,8 +3994,8 @@ async def show_user_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE,
                         
                         if initial > 0:
                             total_value = current + withdrawals
-                            profit_amount = total_value - initial
-                            profit_percentage = (profit_amount / initial) * 100
+                            profit = total_value - initial
+                            profit_percentage = (profit / initial) * 100
                             
                            
                             account_text += f"   📈 <b>Achieved Return:</b> {profit_percentage:.0f}% over {period_text}\n"
@@ -3746,15 +4012,12 @@ async def show_user_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE,
         message += f"\n{no_accounts}"
 
     keyboard = []
-    
     if WEBAPP_URL:
         url_with_lang = f"{WEBAPP_URL}/existing-account?lang={lang}"
         keyboard.append([InlineKeyboardButton(add_account_label, web_app=WebAppInfo(url=url_with_lang))])
-    
     if WEBAPP_URL and len(user_data['trading_accounts']) > 0:
         edit_accounts_url = f"{WEBAPP_URL}/edit-accounts?lang={lang}"
         keyboard.append([InlineKeyboardButton(edit_accounts_label, web_app=WebAppInfo(url=edit_accounts_url))])
-    
     if WEBAPP_URL:
         params = {
             "lang": lang,
@@ -3765,11 +4028,9 @@ async def show_user_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE,
         }
         edit_url = f"{WEBAPP_URL}?{urlencode(params, quote_via=quote_plus)}"
         keyboard.append([InlineKeyboardButton(edit_data_label, web_app=WebAppInfo(url=edit_url))])
-    
     keyboard.append([InlineKeyboardButton(back_label, callback_data="forex_main")])
-    
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     try:
         if update.callback_query and update.callback_query.message:
             await update.callback_query.edit_message_text(
@@ -3901,8 +4162,8 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     sections_data = {
         "forex_main": {
-            "ar": ["📊 نسخ الصفقات", "🤖 طلب اختبار أنظمة YesFX (الوكلاء فقط)"],
-            "en": ["📊 Copy Trading", "🤖 Request to Test YesFX Systems (Agents Only)"],
+            "ar": ["📊 نسخ الصفقات", "🤖 طلب اختبار أنظمة YesFX (الوكلاء فقط)", "🛡️ طلب حساب مشاهدة"],
+            "en": ["📊 Copy Trading", "🤖 Request to Test YesFX Systems (Agents Only)", "🛡️ Request an account to watch"],
             "title_ar": "تداول الفوركس",
             "title_en": "Forex Trading"
         },
@@ -3927,20 +4188,120 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         back_label = "🔙 الرجوع للقائمة الرئيسية" if lang == "ar" else "🔙 Back to main menu"
         labels = options + [back_label]
         header_emoji_for_lang = HEADER_EMOJI if lang == "ar" else "✨"
+        description = "\n\nاختر الخدمة." if lang == "ar" else "\n\nChoose service."
         box = build_header_html(title, labels, header_emoji=header_emoji_for_lang, arabic_indent=1 if lang=="ar" else 0)
         keyboard = []
         for name in options:
             if name in ("🤖 طلب اختبار أنظمة YesFX (الوكلاء فقط)", "🤖 Request to Test YesFX Systems (Agents Only)"):
                 keyboard.append([InlineKeyboardButton(name, url="https://t.me/Nagyfx")])
+            elif name in ("🛡️ طلب حساب مشاهدة", "🛡️ Request an account to watch"):
+                keyboard.append([InlineKeyboardButton(name, callback_data="request_demo_account")])
             else:
                 keyboard.append([InlineKeyboardButton(name, callback_data=name)])
         keyboard.append([InlineKeyboardButton(back_label, callback_data="back_main")])
         reply_markup = InlineKeyboardMarkup(keyboard)
         try:
-            await q.edit_message_text(box, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+            await q.edit_message_text(box + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
             save_form_ref(user_id, q.message.chat_id, q.message.message_id, origin=q.data, lang=lang)
         except Exception:
-            await context.bot.send_message(chat_id=q.message.chat_id, text=box, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+            await context.bot.send_message(chat_id=q.message.chat_id, text=box + description, reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+        return
+
+    if q.data == "request_demo_account":
+        # أولاً: إرسال تفاصيل الحساب إلى المستخدم (كما في الكود الأصلي)
+        if lang == "ar":
+            title = "حساب حقيقي"
+            details = """
+Account Number : 555013
+Password : yesfx2025
+Server : oneroyal-real
+Platform : MT4
+            """
+            ok_button = "✅ حسناً"
+        else:
+            title = "Real Account"
+            details = """
+Account Number : 555013
+Password : yesfx2025
+Server : oneroyal-real
+Platform : MT4
+            """
+            ok_button = "✅ OK"
+
+        labels = [ok_button]
+        header = build_header_html(title, labels, header_emoji="🛡️", arabic_indent=1 if lang == "ar" else 0)
+        message = f"{header}\n\n{details}"
+
+        keyboard = [[InlineKeyboardButton(ok_button, callback_data="delete_demo_message")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        sent_user = await context.bot.send_message(
+            chat_id=user_id,
+            text=message,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+
+        # حفظ للحذف لاحقاً (لرسالة المستخدم)
+        context.user_data['demo_message_id'] = sent_user.message_id
+        context.user_data['demo_chat_id'] = sent_user.chat_id
+
+        # ثانياً: إرسال إخطار إلى الأدمن مع تفاصيل الطلب
+        subscriber = get_subscriber_by_telegram_id(user_id)
+        if subscriber:
+            for admin_id in ADMIN_TELEGRAM_IDS:
+                admin_lang = get_admin_language(admin_id)
+                if admin_lang == "ar":
+                    admin_title = "طلب حساب مشاهدة جديد"
+                    admin_details = f"""
+👤 المستخدم: {subscriber.name}
+📧 البريد: {subscriber.email}
+📞 الهاتف: {subscriber.phone}
+\u200F🆔: {subscriber.telegram_id}
+\u200F@{subscriber.telegram_username or 'N/A'}
+                    """
+                    admin_ok_button = "✅ حسناً"
+                else:
+                    admin_title = "New Demo Account Request"
+                    admin_details = f"""
+👤 User: {subscriber.name}
+📧 Email: {subscriber.email}
+📞 Phone: {subscriber.phone}
+🆔 Telegram ID: {subscriber.telegram_id}
+@{subscriber.telegram_username or 'N/A'}
+                    """
+                    admin_ok_button = "✅ OK"
+
+                admin_labels = [admin_ok_button]
+                admin_header = build_header_html(admin_title, admin_labels, header_emoji="🛡️", arabic_indent=1 if admin_lang == "ar" else 0)
+                admin_message = f"{admin_header}\n\n{admin_details}"
+
+                admin_keyboard = [[InlineKeyboardButton(admin_ok_button, callback_data=f"delete_admin_demo_message_{admin_id}")]]
+                admin_reply_markup = InlineKeyboardMarkup(admin_keyboard)
+
+                sent_admin = await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=admin_message,
+                    reply_markup=admin_reply_markup,
+                    parse_mode="HTML"
+                )
+
+                # يمكن حفظ الرسائل إذا لزم الأمر، لكن بما أن الزر يحذف الرسالة مباشرة، لا حاجة
+        return
+
+    if q.data == "delete_demo_message":
+        message_id = context.user_data.get('demo_message_id')
+        chat_id = context.user_data.get('demo_chat_id')
+        if message_id and chat_id:
+            try:
+                await context.bot.delete_message(
+                    chat_id=chat_id,
+                    message_id=message_id
+                )
+                context.user_data.pop('demo_message_id', None)
+                context.user_data.pop('demo_chat_id', None)
+            except Exception as e:
+                logger.exception(f"Failed to delete demo message: {e}")
         return
 
     if q.data in ("📊 نسخ الصفقات", "📊 Copy Trading"):
@@ -3948,29 +4309,37 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if display_lang == "ar":
             header_title = "اختر وسيطك الآن"
             brokers_title = ""
-            back_label = "🔙 الرجوع لتداول الفوركس"
+            trial_label = "🆓 تجربة النسخ المجاني"
             accounts_label = "👤 بياناتي وحساباتي"
+            back_label = "🔙 الرجوع لتداول الفوركس"
+            description = "\n\nاختر وسيطك."
+            labels = ["🏦 Oneroyall", "🏦 Scope", trial_label, accounts_label, back_label]
         else:
             header_title = "Choose your broker now"
             brokers_title = ""
-            back_label = "🔙 Back to Forex"
+            trial_label = "🆓 Free Copy Trial"
             accounts_label = "👤 My Data & Accounts"
+            back_label = "🔙 Back to Forex"
+            description = "\n\nChoose broker."
+            labels = ["🏦 Oneroyall", "🏦 Scope", trial_label, accounts_label, back_label]
 
         keyboard = [
             [InlineKeyboardButton("🏦 Oneroyall", url="https://vc.cabinet.oneroyal.com/ar/links/go/10118"),
              InlineKeyboardButton("🏦 Scope", url="https://my.tickmill.com?utm_campaign=ib_link&utm_content=IB60363655&utm_medium=Open+Account&utm_source=link&lp=https%3A%2F%2Fmy.tickmill.com%2Far%2Fsign-up%2F")]
         ]
-
+        if WEBAPP_URL:
+            trial_url = f"{WEBAPP_URL}/free-trial?lang={display_lang}"
+            keyboard.append([InlineKeyboardButton(trial_label, web_app=WebAppInfo(url=trial_url))])
         keyboard.append([InlineKeyboardButton(accounts_label, callback_data="my_accounts")])
         keyboard.append([InlineKeyboardButton(back_label, callback_data="forex_main")])
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
-            await q.edit_message_text(build_header_html(header_title, ["🏦 Oneroyall","🏦 Scope", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + f"\n\n{brokers_title}", reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+            await q.edit_message_text(build_header_html(header_title, labels, header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + description + f"\n\n{brokers_title}", reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
             save_form_ref(user_id, q.message.chat_id, q.message.message_id, origin="brokers", lang=display_lang)
         except Exception:
             try:
-                sent = await context.bot.send_message(chat_id=q.message.chat_id, text=build_header_html(header_title, ["🏦 Oneroyall","🏦 Scope", back_label, accounts_label], header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + f"\n\n{brokers_title}", reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
+                sent = await context.bot.send_message(chat_id=q.message.chat_id, text=build_header_html(header_title, labels, header_emoji=HEADER_EMOJI, arabic_indent=1 if display_lang=="ar" else 0) + description + f"\n\n{brokers_title}", reply_markup=reply_markup, parse_mode="HTML", disable_web_page_preview=True)
                 save_form_ref(user_id, sent.chat_id, sent.message_id, origin="brokers", lang=display_lang)
             except Exception:
                 logger.exception("Failed to show congrats screen for already-registered user.")
@@ -4013,31 +4382,21 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             support_label = "💬 التواصل مع الدعم"
             back_label = "🔙 الرجوع"
             description = f"""
-نحن هنا لمساعدتك في {service_title}!
+مساعدتك في {service_title}.
 
-<b>📞 للاستفسار أو الطلب:</b>
+<b>📞 للاستفسار:</b>
 • اضغط على زر التواصل مع الدعم
-• سيتم ربطك مباشرة مع فريق الدعم
-• قدم متطلباتك وسنساعدك فوراً
-
-<b>⏰ أوقات الدعم:</b>
-• كل أيام الأسبوع
-• من 9 صباحاً حتى 6 مساءً
+• قدم متطلباتك
             """
         else:
             support_label = "💬 Contact Support"
             back_label = "🔙 Back"
             description = f"""
-We're here to help you with {service_title}!
+Help with {service_title}.
 
-<b>📞 For inquiries or orders:</b>
-• Click the Contact Support button
-• You'll be connected directly with our support team
-• Provide your requirements and we'll assist you immediately
-
-<b>⏰ Support Hours:</b>
-• Every day of the week
-• From 9 AM to 6 PM
+<b>📞 For inquiries:</b>
+• Click Contact Support
+• Provide requirements
             """
         
         back_callback = "dev_main" if q.data in ["📈 برمجة المؤشرات", "📈 Indicators", "🤖 برمجة الاكسبيرتات", "🤖 Expert Advisors", "💬 بوتات التليجرام", "💬 Telegram Bots", "🌐 مواقع الويب", "🌐 Web Development"] else "agency_main"
@@ -4071,9 +4430,11 @@ We're here to help you with {service_title}!
     if lang == "ar":
         placeholder = "تم اختيار الخدمة"
         details = "سيتم إضافة التفاصيل قريبًا..."
+        description = "\n\n" + details
     else:
         placeholder = "Service selected"
         details = "Details will be added soon..."
+        description = "\n\n" + details
     
     labels_for_header = [q.data]
     header_box = build_header_html(placeholder, labels_for_header, header_emoji=HEADER_EMOJI if lang=="ar" else "✨", arabic_indent=1 if lang=="ar" else 0)
@@ -4093,7 +4454,7 @@ We're here to help you with {service_title}!
     
     try:
         await q.edit_message_text(
-            header_box + f"\n\n{details}",
+            header_box + description,
             reply_markup=reply_markup,
             parse_mode="HTML",
             disable_web_page_preview=True
@@ -4101,12 +4462,24 @@ We're here to help you with {service_title}!
     except Exception:
         await context.bot.send_message(
             chat_id=q.message.chat_id,
-            text=header_box + f"\n\n{details}",
+            text=header_box + description,
             reply_markup=reply_markup,
             parse_mode="HTML",
             disable_web_page_preview=True
         )
-
+        
+async def delete_demo_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    
+    # حذف الرسالة التي تحتوي على الزر مباشرة
+    try:
+        await context.bot.delete_message(
+            chat_id=q.message.chat_id,
+            message_id=q.message.message_id
+        )
+    except Exception as e:
+        logger.exception(f"Failed to delete user demo message: {e}")
 # ===============================
 # web_app_message_handler fallback
 # ===============================
@@ -4135,7 +4508,7 @@ async def web_app_message_handler(update: Update, context: ContextTypes.DEFAULT_
             await show_user_accounts(update, context, user_id, lang)
             return
 
-        if data_type == "existing_account" or data_type == "edit_account" or data_type == "delete_account":
+        if data_type == "existing_account" or data_type == "edit_account" or data_type == "delete_account" or data_type == "free_trial":
             # تحديث واجهة الحسابات
             await refresh_user_accounts_interface(user_id, lang, ref["chat_id"], ref["message_id"])
         elif data_type == "registration":
@@ -4153,7 +4526,7 @@ async def web_app_message_handler(update: Update, context: ContextTypes.DEFAULT_
         await msg.reply_text("⚠️ Invalid status.")
 
 # ===============================
-# New: endpoint to receive existing-account form submissions
+# POST endpoint: receive existing-account form submissions from WebApp
 # ===============================
 @app.post("/webapp/existing-account/submit")
 async def submit_existing_account(payload: dict = Body(...)):
@@ -4243,6 +4616,96 @@ async def submit_existing_account(payload: dict = Body(...)):
         logger.exception("Error saving trading account: %s", e)
         return JSONResponse(status_code=500, content={"error": "Server error."})
 
+# New endpoint for free trial submission
+@app.post("/webapp/free-trial/submit")
+async def submit_free_trial(payload: dict = Body(...)):
+    try:
+        tg_user = payload.get("tg_user") or {}
+        telegram_id = tg_user.get("id") if isinstance(tg_user, dict) else None
+        broker = (payload.get("broker") or "").strip()
+        account_type = (payload.get("account_type") or "").strip()
+        platform_type = (payload.get("platform_type") or "").strip()
+        account_number = (payload.get("account_number") or "").strip()
+        password = (payload.get("password") or "").strip()
+        server = (payload.get("server") or "").strip()
+        currency_type = (payload.get("currency_type") or "").strip()
+        balance = (payload.get("balance") or "").strip()
+        lang = (payload.get("lang") or "ar").lower()
+
+        required_fields = {
+            'broker': broker,
+            'account_type': account_type,
+            'platform_type': platform_type,
+            'account_number': account_number,
+            'password': password,
+            'server': server,
+            'currency_type': currency_type,
+            'balance': balance
+        }
+        
+        missing_fields = [field for field, value in required_fields.items() if not value]
+        
+        if missing_fields:
+            error_message = "Missing required fields: " + ", ".join(missing_fields)
+            return JSONResponse(status_code=400, content={"error": error_message})
+
+        # Server-side validation for balance
+        try:
+            balance_num = float(balance)
+            if currency_type == "Cent" and balance_num < 50:
+                return JSONResponse(status_code=400, content={"error": "Minimum balance for Cent is 50"})
+            if currency_type == "Dollar" and balance_num < 5000:
+                return JSONResponse(status_code=400, content={"error": "Minimum balance for Dollar is 5000"})
+        except ValueError:
+            return JSONResponse(status_code=400, content={"error": "Invalid balance value"})
+
+        subscriber = get_subscriber_by_telegram_id(telegram_id)
+        if not subscriber:
+            return JSONResponse(status_code=404, content={"error": "User not found. Please complete registration first."})
+
+        # Save as regular trading account, perhaps with a note or flag if needed
+        success, trading_account = save_trading_account(
+            subscriber_id=subscriber.id,
+            broker_name=broker,
+            account_number=account_number,
+            password=password,
+            server=server,
+            initial_balance=balance,  # Use balance as initial_balance
+            current_balance=balance,  # Assume initial = current for trial
+            withdrawals="0",  # Default to 0
+            copy_start_date=datetime.now().strftime('%Y-%m-%d'),  # Today
+            agent="Trial",  # Mark as trial
+            expected_return="Trial"  # Mark as trial
+        )
+
+        if not success:
+            return JSONResponse(status_code=500, content={"error": "Failed to save trial account."})
+
+        ref = get_form_ref(telegram_id)
+        
+        if ref:
+            await refresh_user_accounts_interface(telegram_id, lang, ref["chat_id"], ref["message_id"])
+        else:
+            if lang == "ar":
+                msg_text = "✅ تم تسجيل طلب التجربة المجانية بنجاح! قيد المراجعة."
+            else:
+                msg_text = "✅ Free trial request registered successfully! Under review."
+            
+            try:
+                await application.bot.send_message(
+                    chat_id=telegram_id, 
+                    text=msg_text, 
+                    parse_mode="HTML", 
+                    disable_web_page_preview=True
+                )
+            except Exception:
+                logger.exception("Failed to send confirmation message")
+
+        return JSONResponse(content={"message": "Registered successfully."})
+    except Exception as e:
+        logger.exception("Error saving free trial: %s", e)
+        return JSONResponse(status_code=500, content={"error": "Server error."})
+
 # ===============================
 # Handlers registration - CORRECTED ORDER
 # ===============================
@@ -4270,6 +4733,8 @@ application.add_handler(CallbackQueryHandler(set_language, pattern="^lang_"))
 application.add_handler(CallbackQueryHandler(handle_notification_confirmation, pattern="^confirm_notification_"))
 application.add_handler(CallbackQueryHandler(admin_update_performances, pattern="^admin_update_performances$"))
 application.add_handler(CallbackQueryHandler(admin_reset_sequences, pattern="^admin_reset_sequences$"))
+application.add_handler(CallbackQueryHandler(delete_demo_message, pattern="^delete_admin_demo_message_"))
+application.add_handler(CallbackQueryHandler(delete_demo_message, pattern="^delete_demo_message$"))
 application.add_handler(CallbackQueryHandler(menu_handler))
 # ===============================
 # Webhook setup
